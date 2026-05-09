@@ -1,14 +1,13 @@
 import os
-import json
 import logging
-from anthropic import Anthropic
+from groq import Groq
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-client = Anthropic()
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # In-memory conversation store per user
 conversation_store = {}
@@ -75,14 +74,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + get_user_history(user_id)
+        
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             max_tokens=1000,
-            system=SYSTEM_PROMPT,
-            messages=get_user_history(user_id)
+            messages=messages
         )
 
-        assistant_message = response.content[0].text
+        assistant_message = response.choices[0].message.content
 
         # Add response to history
         add_to_history(user_id, "assistant", assistant_message)
